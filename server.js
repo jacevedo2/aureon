@@ -15,7 +15,7 @@ import { validate }     from './assistant/validate.js';
 import { buildContext } from './assistant/context.js';
 import { buildPrompt }  from './assistant/prompt.js';
 import { callModel }    from './assistant/model.js';
-import { etfData }      from './etf-data.js';
+import { etfState, refreshEtfData } from './etf-loader.js';
 import authRoutes       from './auth/routes.js';
 import userRoutes       from './user/routes.js';
 import portfolioRouter  from './portfolio/routes.js';
@@ -29,6 +29,16 @@ console.log('[startup] JWT_SECRET present:        ', !!process.env.JWT_SECRET);
 console.log('[startup] DATABASE_PATH:             ', process.env.DATABASE_PATH || '(not set — using local aureon.db)');
 console.log('[startup] EMAIL_FROM:                ', process.env.EMAIL_FROM    || '(not set — using default)');
 console.log('[startup] RESEND_API_KEY present:    ', !!process.env.RESEND_API_KEY);
+console.log('[startup] ETF data source:           ', etfState.source);
+console.log('[startup] ETF lastUpdated:           ', etfState.payload?.lastUpdated);
+console.log('[startup] ETF_DATA_URL:              ', process.env.ETF_DATA_URL || '(not set)');
+
+// Refresh ETF data every 4 hours so lastUpdated never goes stale between deploys
+const ETF_REFRESH_MS = 4 * 60 * 60 * 1000;
+setInterval(async () => {
+  console.log('[ETF scheduler] running scheduled refresh');
+  await refreshEtfData();
+}, ETF_REFRESH_MS).unref(); // .unref() so the interval never blocks process exit
 
 // Load .env for local development only.
 // On Railway/Render, env vars are injected natively — no .env file exists there.
@@ -48,6 +58,16 @@ app.use('/api/alerts', alertsRouter);
 app.use('/api/conversations', conversationsRouter);
 app.use('/api/predict', predictRouter);
 
+// GET /api/etf — ETF flow data served to the iOS app.
+// Data source is resolved at startup by etf-loader.js (priority: remote URL → latest-etf-data.json → etf-data.js).
+// To update without a code change: edit latest-etf-data.json and git push.
+app.get('/api/etf', (req, res) => {
+  const { payload, source } = etfState;
+  console.log('ETF API served:', new Date());
+  console.log(`[/api/etf] source: ${source}, lastUpdated: ${payload.lastUpdated}`);
+  res.json(payload);
+});
+
 // iOS Safari requires this exact MIME type for the web manifest
 app.get('/site.webmanifest', (req, res) => {
   res.setHeader('Content-Type', 'application/manifest+json');
@@ -55,12 +75,6 @@ app.get('/site.webmanifest', (req, res) => {
 });
 
 app.use(express.static(dirname(fileURLToPath(import.meta.url))));
-
-// GET /api/etf — ETF flow data served to the iOS app.
-// Edit etf-data.js to update values. Do not change the shape of this response.
-app.get('/api/etf', (req, res) => {
-  res.json(etfData);
-});
 
 app.post('/api/assistant', async (req, res) => {
   try {
@@ -258,4 +272,4 @@ app.get('/terms', (req, res) => {
 });
 
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => console.log(`Aureon → http://localhost:${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`Aureon → listening on 0.0.0.0:${PORT}`));

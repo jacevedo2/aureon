@@ -1,0 +1,41 @@
+{
+  "_note": "Edit this file and git push to update ETF data without touching server code. Railway redeploys in ~30s.",
+
+  "lastUpdated": "2026-04-26",
+
+  "btcFlow":  -384900000,
+  "ethFlow":   -20300000,
+  "xrpFlow":   14600000,
+
+  "btcAUM":  94000000000,
+  "ethAUM":   6800000000,
+  "xrpAUM":   1413300000,
+
+  "btcRecentFlows": [
+    -108500000,
+     462400000,
+    -113300000,
+    -117700000,
+    -384900000,
+    -384900000,
+    -384900000
+  ],
+  "ethRecentFlows": [
+    -133200000,
+      26200000,
+      89000000,
+     -35000000,
+     -20300000,
+     -20300000,
+     -20300000
+  ],
+  "xrpRecentFlows": [
+      8200000,
+     -2100000,
+     15400000,
+      6800000,
+     -3200000,
+     11700000,
+     14600000
+  ]
+}
