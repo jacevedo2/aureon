@@ -5,7 +5,7 @@
  */
 
 export function buildContext(body) {
-  const { question, history = [], market = null, mode = 'detailed' } = body;
+  const { question, history = [], market = null, mode = 'detailed', macro = null } = body;
 
   // Normalize conversation history.
   // Drop any leading assistant turn (the greeting) so messages start with user.
@@ -27,10 +27,18 @@ export function buildContext(body) {
   const rsi  = market?.rsi  ?? null;
   const zones = market?.zones ?? null;
 
+  // Optional macro context: { btc: { price, change }, eth: { price, change } }
+  // Sent by the iOS app when BTC/ETH data is available alongside the selected coin.
+  const normMacro = macro && typeof macro === 'object' ? {
+    btc: macro.btc ? { price: macro.btc.price ?? null, change: macro.btc.change ?? null } : null,
+    eth: macro.eth ? { price: macro.eth.price ?? null, change: macro.eth.change ?? null } : null,
+  } : null;
+
   return {
     question: q,
     history: msgs,
     mode,
+    macro: normMacro,
     market: market ? {
       coin:       coin ? { id: coin.id, symbol: coin.symbol, name: coin.name } : null,
       price:      market.price      ?? null,
