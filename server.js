@@ -77,33 +77,32 @@ app.get('/site.webmanifest', (req, res) => {
 app.use(express.static(dirname(fileURLToPath(import.meta.url))));
 
 app.post('/api/assistant', async (req, res) => {
-  try {
-    console.log('[api/assistant] incoming request:', req.body);
+  const question = req.body?.question ?? '(no question)';
+  console.log('[api/assistant] incoming — question:', question.slice(0, 120));
 
+  try {
     const validationError = validate(req.body);
     if (validationError) {
-      console.error('[api/assistant] validation error:', validationError);
-      return res.status(400).json({ response: 'Invalid request: ' + validationError });
+      console.warn('[api/assistant] validation error:', validationError);
+      // Return 200 so iOS validateResponse never blocks the message from being read
+      return res.json({ response: 'Invalid request: ' + validationError });
     }
 
     const ctx          = buildContext(req.body);
     const systemPrompt = buildPrompt(ctx);
 
     const { text, model } = await callModel({ systemPrompt, messages: ctx.history, market: ctx.market, mode: ctx.mode });
-    const response = text || 'Claude returned an empty response';
-    console.log('[api/assistant] sending response:', response);
+    const response = text || 'Aureon AI temporarily unavailable.';
+    console.log('[api/assistant] success — model:', model, 'chars:', response.length);
 
     res.json({
       response,
-      debug: {
-        model,
-        promptChars: systemPrompt.length,
-        turns:       ctx.history.length,
-      },
+      debug: { model, promptChars: systemPrompt.length, turns: ctx.history.length },
     });
   } catch (err) {
-    console.error('[api/assistant] error:', err);
-    res.status(500).json({ response: 'Server error: ' + (err?.message || 'unknown error') });
+    console.error('[api/assistant] error:', err?.message ?? err);
+    // Always return 200 + response key so iOS parser receives the fallback message
+    res.json({ response: 'Aureon AI temporarily unavailable.' });
   }
 });
 

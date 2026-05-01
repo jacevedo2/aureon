@@ -7,19 +7,18 @@ export async function callModel({ systemPrompt, messages }) {
     const client = new Anthropic();
 
     const response = await client.messages.create({
-      model:      'claude-opus-4-5',
+      model:      'claude-sonnet-4-6',
       max_tokens: 1024,
       system:     systemPrompt,
       messages,
     });
 
-    console.log('[model.js] Claude raw response:', JSON.stringify(response, null, 2));
-
     const text = response?.content?.[0]?.text ?? '';
+    console.log('[model.js] Claude response length:', text.length);
 
     return {
       text:  text || 'Claude returned an empty response',
-      model: 'claude-opus-4-5',
+      model: 'claude-sonnet-4-6',
     };
   } catch (err) {
     console.error('[model.js] Claude SDK error:', err);
