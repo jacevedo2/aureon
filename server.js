@@ -24,7 +24,9 @@ import conversationsRouter   from './conversations/routes.js';
 import predictRouter         from './predict/routes.js';
 
 // ── Startup diagnostics ───────────────────────────────────────────────────────
-console.log('[startup] ANTHROPIC_API_KEY present:', !!process.env.ANTHROPIC_API_KEY);
+const apiKeyPresent = !!process.env.ANTHROPIC_API_KEY;
+console.log('[startup] ANTHROPIC_API_KEY present:', apiKeyPresent);
+if (!apiKeyPresent) console.error('[startup] ⚠️  ANTHROPIC_API_KEY missing — /api/assistant will return fallback on every call');
 console.log('[startup] JWT_SECRET present:        ', !!process.env.JWT_SECRET);
 console.log('[startup] DATABASE_PATH:             ', process.env.DATABASE_PATH || '(not set — using local aureon.db)');
 console.log('[startup] EMAIL_FROM:                ', process.env.EMAIL_FROM    || '(not set — using default)');
@@ -77,35 +79,38 @@ app.get('/site.webmanifest', (req, res) => {
 app.use(express.static(dirname(fileURLToPath(import.meta.url))));
 
 app.post('/api/assistant', async (req, res) => {
-  console.log('[api/assistant] HIT');
+  const t0 = Date.now();
+  console.log('[api/assistant] HIT — request received');
   const question = req.body?.question ?? '(no question)';
   console.log('[api/assistant] question:', question.slice(0, 120));
+
+  const fallback = 'Market data is available, but AI response is temporarily unavailable.';
 
   try {
     const validationError = validate(req.body);
     if (validationError) {
       console.warn('[api/assistant] validation error:', validationError);
-      const response = 'Invalid request: ' + validationError;
-      console.log('[api/assistant] returning:', response);
-      return res.json({ response });
+      return res.json({ response: 'Invalid request: ' + validationError, message: 'Invalid request: ' + validationError });
     }
 
     const ctx          = buildContext(req.body);
     const systemPrompt = buildPrompt(ctx);
 
+    console.log('[api/assistant] calling AI — promptChars:', systemPrompt.length, 'turns:', ctx.history.length);
     const { text, model } = await callModel({ systemPrompt, messages: ctx.history, market: ctx.market, mode: ctx.mode });
-    const response = text || 'Aureon AI temporarily unavailable.';
+    const response = text || fallback;
+    console.log(`[api/assistant] AI success — ${Date.now() - t0}ms, model: ${model}`);
     console.log('[api/assistant] returning:', response.slice(0, 120));
 
     res.json({
       response,
-      debug: { model, promptChars: systemPrompt.length, turns: ctx.history.length },
+      message: response,
+      debug: { model, promptChars: systemPrompt.length, turns: ctx.history.length, ms: Date.now() - t0 },
     });
   } catch (err) {
-    console.error('[api/assistant] error:', err?.message ?? err);
-    const response = 'Aureon AI temporarily unavailable.';
-    console.log('[api/assistant] returning fallback:', response);
-    res.json({ response });
+    console.error(`[api/assistant] AI call failed after ${Date.now() - t0}ms —`, err?.message ?? err);
+    console.log('[api/assistant] returning fallback');
+    res.json({ response: fallback, message: fallback });
   }
 });
 
