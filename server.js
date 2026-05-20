@@ -33,6 +33,11 @@ console.log('[startup] EMAIL_FROM:                ', process.env.EMAIL_FROM    |
 console.log('[startup] RESEND_API_KEY present:    ', !!process.env.RESEND_API_KEY);
 console.log('[startup] ETF data source:           ', etfState.source);
 console.log('[startup] ETF lastUpdated:           ', etfState.payload?.lastUpdated);
+console.log('[startup] COINGLASS_API_KEY present: ', !!process.env.COINGLASS_API_KEY);
+if (!process.env.COINGLASS_API_KEY) {
+  console.warn('[startup] ⚠️  COINGLASS_API_KEY missing — ETF data will NOT be live (serving committed file).');
+  console.warn('[startup]    Add COINGLASS_API_KEY to Render env vars to enable live institutional flow data.');
+}
 console.log('[startup] ETF_DATA_URL:              ', process.env.ETF_DATA_URL || '(not set)');
 
 // Refresh ETF data every 4 hours so lastUpdated never goes stale between deploys
@@ -65,9 +70,32 @@ app.use('/api/predict', predictRouter);
 // To update without a code change: edit latest-etf-data.json and git push.
 app.get('/api/etf', (req, res) => {
   const { payload, source } = etfState;
-  console.log('ETF API served:', new Date());
-  console.log(`[/api/etf] source: ${source}, lastUpdated: ${payload.lastUpdated}`);
-  res.json(payload);
+
+  // Compute staleness metadata so the iOS client can display accurate freshness labels
+  // without needing to guess based on lastUpdated alone.
+  const ageMs     = payload.lastUpdated ? Date.now() - new Date(payload.lastUpdated).getTime() : null;
+  const ageDays   = ageMs != null ? Math.floor(ageMs / 86_400_000) : null;
+  const isStale   = ageDays != null && ageDays > 3;
+  const staleReason = source === 'coinglass-live'
+    ? null
+    : source === 'remote-url'
+      ? null
+      : source === 'latest-file'
+        ? 'Serving committed file — update latest-etf-data.json and git push, or set COINGLASS_API_KEY for live data'
+        : 'Serving hardcoded fallback — no live source or committed file is current';
+
+  console.log(`[/api/etf] source: ${source}, lastUpdated: ${payload.lastUpdated}, ageDays: ${ageDays ?? '?'}, isStale: ${isStale}`);
+
+  res.json({
+    ...payload,
+    _meta: {
+      source,
+      isStale,
+      ageDays,
+      staleReason: isStale ? staleReason : null,
+      servedAt: new Date().toISOString(),
+    },
+  });
 });
 
 // iOS Safari requires this exact MIME type for the web manifest
