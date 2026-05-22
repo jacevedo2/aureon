@@ -61,6 +61,10 @@ for (const sql of [
   'ALTER TABLE users ADD COLUMN verified_at       INTEGER',
   'ALTER TABLE users ADD COLUMN verification_token TEXT',
   'ALTER TABLE users ADD COLUMN verification_token_expires INTEGER',
+  // portfolio/routes.js needs these three columns — the original schema predates that route
+  'ALTER TABLE portfolio_holdings ADD COLUMN coin_name   TEXT',
+  'ALTER TABLE portfolio_holdings ADD COLUMN coin_symbol TEXT',
+  'ALTER TABLE portfolio_holdings ADD COLUMN entry_price REAL',
 ]) {
   try { db.exec(sql); } catch (e) { /* column already exists — safe to ignore */ }
 }
