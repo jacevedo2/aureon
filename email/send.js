@@ -40,10 +40,16 @@ function verificationHtml(verifyUrl) {
 export async function sendVerificationEmail({ to, token, baseUrl }) {
   const verifyUrl = `${baseUrl}/api/auth/verify?token=${token}`;
 
-  // Dev mode: no API key — just log the link so you can test locally
   if (!process.env.RESEND_API_KEY) {
+    // Always log the link so local dev can verify without an email service
     console.log(`[email:dev] Verification link for ${to}:`);
     console.log(`[email:dev] ${verifyUrl}`);
+    // On Render (RENDER=true is injected automatically) a missing key is a
+    // misconfiguration — return a real error so callers surface it correctly.
+    if (process.env.RENDER) {
+      console.error('[email] RESEND_API_KEY is not set — email was NOT sent. Add it in Render → Environment → RESEND_API_KEY');
+      return { ok: false, error: 'Email service not configured (RESEND_API_KEY missing)' };
+    }
     return { ok: true };
   }
 

@@ -29,8 +29,14 @@ console.log('[startup] ANTHROPIC_API_KEY present:', apiKeyPresent);
 if (!apiKeyPresent) console.error('[startup] ⚠️  ANTHROPIC_API_KEY missing — /api/assistant will return fallback on every call');
 console.log('[startup] JWT_SECRET present:        ', !!process.env.JWT_SECRET);
 console.log('[startup] DATABASE_PATH:             ', process.env.DATABASE_PATH || '(not set — using local aureon.db)');
-console.log('[startup] EMAIL_FROM:                ', process.env.EMAIL_FROM    || '(not set — using default)');
+console.log('[startup] EMAIL_FROM:                ', process.env.EMAIL_FROM    || '(not set — using Aureon <onboarding@resend.dev>)');
 console.log('[startup] RESEND_API_KEY present:    ', !!process.env.RESEND_API_KEY);
+if (!process.env.RESEND_API_KEY && process.env.RENDER) {
+  console.error('[startup] ❌ RESEND_API_KEY missing on Render — verification emails will NOT be sent. Add it in Render → Environment.');
+}
+if (process.env.RESEND_API_KEY && !process.env.EMAIL_FROM) {
+  console.warn('[startup] ⚠️  EMAIL_FROM not set — using onboarding@resend.dev (Resend sandbox domain). Set EMAIL_FROM to a verified custom domain for production delivery.');
+}
 console.log('[startup] ETF data source:           ', etfState.source);
 console.log('[startup] ETF lastUpdated:           ', etfState.payload?.lastUpdated);
 console.log('[startup] COINGLASS_API_KEY present: ', !!process.env.COINGLASS_API_KEY);
