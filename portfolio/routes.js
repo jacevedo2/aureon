@@ -21,7 +21,14 @@ router.get('/', requireAuth, (req, res) => {
 });
 
 router.post('/', requireAuth, (req, res) => {
-  const { coinId, coinName, coinSymbol, amount, entryPrice } = req.body;
+  console.log('[portfolio POST] route version=FK_DIAGNOSTIC_V1');
+  console.log('[portfolio POST] incoming body:', JSON.stringify(req.body));
+  const { coinId: rawCoinId, coinName, coinSymbol, amount, entryPrice } = req.body;
+
+  // Normalize coinId — lowercase + trim to prevent casing mismatches
+  const coinId = typeof rawCoinId === 'string' ? rawCoinId.trim().toLowerCase() : rawCoinId;
+
+  console.log('[portfolio POST] received — coinId:', coinId, '| coinName:', coinName, '| coinSymbol:', coinSymbol, '| amount:', amount, '| entryPrice:', entryPrice);
 
   const missing = [];
   if (!coinId)     missing.push('coinId');
@@ -30,33 +37,52 @@ router.post('/', requireAuth, (req, res) => {
   if (!amount)     missing.push('amount');
   if (!entryPrice) missing.push('entryPrice');
   if (missing.length > 0) {
-    console.warn('[portfolio POST] validation failed — missing fields:', missing.join(', '));
-    return res.status(400).json({ error: 'Missing required fields', missing });
+    const resp = { error: 'Missing required fields', missing };
+    console.warn('[portfolio POST] validation failed — missing:', missing.join(', '));
+    return res.status(400).json(resp);
   }
 
   const amountNum     = Number(amount);
   const entryPriceNum = Number(entryPrice);
   if (!Number.isFinite(amountNum) || amountNum <= 0) {
-    return res.status(400).json({ error: 'amount must be a positive number' });
+    console.warn('[portfolio POST] validation failed — amount invalid:', amount);
+    return res.status(400).json({ error: 'amount must be a positive number', received: String(amount) });
   }
   if (!Number.isFinite(entryPriceNum) || entryPriceNum <= 0) {
-    return res.status(400).json({ error: 'entryPrice must be a positive number' });
+    console.warn('[portfolio POST] validation failed — entryPrice invalid:', entryPrice);
+    return res.status(400).json({ error: 'entryPrice must be a positive number', received: String(entryPrice) });
   }
 
-  console.log('[portfolio POST] validation passed — inserting for user', req.userId);
+  // Confirm user exists — belt-and-suspenders even though requireAuth already checks
+  const userRow = db.prepare('SELECT id, email FROM users WHERE id = ?').get(req.userId);
+  console.log('[portfolio POST] user exists:', !!userRow, '| userId:', req.userId, userRow ? `(${userRow.email})` : '(NOT FOUND)');
+  if (!userRow) {
+    return res.status(401).json({ error: 'Session expired. Please sign in again.' });
+  }
+
+  const now          = Date.now();
+  const insertSql    = 'INSERT INTO portfolio_holdings (user_id, coin_id, coin_name, coin_symbol, amount, entry_price, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)';
+  const insertParams = [req.userId, coinId, coinName, coinSymbol, amountNum, entryPriceNum, now];
+  console.log('[portfolio POST] insert target — userId:', req.userId, '| coinId:', coinId);
   try {
-    const now    = new Date().toISOString();
-    const result = db.prepare(
-      'INSERT INTO portfolio_holdings (user_id, coin_id, coin_name, coin_symbol, amount, entry_price, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
-    ).run(req.userId, coinId, coinName, coinSymbol, amountNum, entryPriceNum, now);
+    const result = db.prepare(insertSql).run(...insertParams);
     const holding = db.prepare(
       'SELECT id, user_id, coin_id, coin_name, coin_symbol, amount, entry_price, created_at FROM portfolio_holdings WHERE id = ?'
     ).get(result.lastInsertRowid);
-    console.log('[portfolio POST] insert OK — rowid:', result.lastInsertRowid);
+    console.log('[portfolio POST] insert OK — rowid:', result.lastInsertRowid, '| holding:', JSON.stringify(holding));
     res.json({ holding });
   } catch (err) {
-    console.error('[portfolio POST] db error:', err.message, err.stack);
-    res.status(500).json({ error: 'Failed to save holding', detail: err.message });
+    console.error('[portfolio POST] db insert FAILED — message:', err.message, '| code:', err.code);
+    if (err.message?.includes('FOREIGN KEY')) {
+      // Identify which FK is failing to pinpoint the root cause
+      const userCheck = db.prepare('SELECT 1 FROM users WHERE id = ?').get(req.userId);
+      const activeFks = db.prepare("PRAGMA foreign_key_list('portfolio_holdings')").all();
+      console.error('[portfolio POST] FK diagnosis — user exists:', !!userCheck, '| userId:', req.userId);
+      console.error('[portfolio POST] FK diagnosis — active FKs:', JSON.stringify(activeFks));
+      const source = !userCheck ? 'users table (user_id not found)' : 'unknown — check FK list above';
+      console.error('[portfolio POST] FK failure source:', source);
+    }
+    res.status(500).json({ error: 'Failed to save holding', detail: err.message, code: err.code ?? null });
   }
 });
 
