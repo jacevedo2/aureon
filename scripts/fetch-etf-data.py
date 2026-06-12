@@ -27,7 +27,7 @@ OUTPUT = os.path.join(ROOT, "latest-etf-data.json")
 
 BTC_TICKERS = ["IBIT", "FBTC", "GBTC", "ARKB", "BITB", "HODL", "BTCO", "BRRR", "EZBC", "DEFI", "BTCW"]
 ETH_TICKERS = ["ETHA", "FETH", "ETHW", "CETH", "QETH", "ETHV", "ETHU", "EZET"]
-XRP_TICKERS = ["XRPI", "XRPC"]
+XRP_TICKERS = ["XRPI", "XRPC", "XRP", "XRPZ", "GXRP", "TOXR", "XRPR"]
 
 BTC_BENCHMARK = "IBIT"
 ETH_BENCHMARK = "ETHA"
