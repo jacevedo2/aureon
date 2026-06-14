@@ -33,9 +33,18 @@ BTC_BENCHMARK = "IBIT"
 ETH_BENCHMARK = "ETHA"
 XRP_BENCHMARK = "XRPI"
 
+# Tickers that must return AUM > 0 for the XRP basket to be considered valid.
+# XRPR is intentionally excluded — Yahoo Finance does not publish totalAssets for it.
+REQUIRED_XRP_TICKERS = {"XRPI", "XRPC", "XRP", "XRPZ", "GXRP", "TOXR"}
 
-def get_total_aum(tickers: list[str]) -> int:
+# Abort if new xrpAUM is below this fraction of the price-adjusted prior snapshot.
+# Catches partial-coverage runs that don't hit zero but still under-count significantly.
+XRP_AUM_MIN_RATIO = 0.80
+
+
+def get_total_aum(tickers: list[str], required: set[str] | None = None) -> int:
     total = 0
+    resolved: set[str] = set()
     for sym in tickers:
         try:
             info = yf.Ticker(sym).info
@@ -43,8 +52,21 @@ def get_total_aum(tickers: list[str]) -> int:
             if aum > 0:
                 print(f"  {sym}: ${aum / 1e9:.3f}B")
                 total += aum
+                resolved.add(sym)
+            else:
+                print(f"  {sym}: $0 (no AUM returned)", file=sys.stderr)
         except Exception as e:
             print(f"  {sym}: skipped ({e})", file=sys.stderr)
+    if required:
+        missing = required - resolved
+        if missing:
+            missing_str = ", ".join(sorted(missing))
+            print(
+                f"\nABORT: Required XRP tickers returned no AUM: {missing_str}\n"
+                f"  Not writing latest-etf-data.json — prior snapshot preserved.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
     return int(total)
 
 
@@ -113,8 +135,27 @@ def main():
     print(f"  → total: ${eth_aum / 1e9:.2f}B")
 
     print("\nXRP ETF basket:")
-    xrp_aum = get_total_aum(XRP_TICKERS)
+    xrp_aum = get_total_aum(XRP_TICKERS, required=REQUIRED_XRP_TICKERS)
     print(f"  → total: ${xrp_aum / 1e9:.3f}B")
+
+    # ── XRP regression guard ───────────────────────────────────────────────────────
+    # Compute xrp_return here so it can be reused for flow computation below.
+    prior_xrp_aum = existing.get("xrpAUM", 0)
+    xrp_return = 1.0  # default; overwritten when prior data exists
+    if prior_xrp_aum > 0:
+        xrp_return = get_price_return(XRP_BENCHMARK)
+        price_adjusted_prior = prior_xrp_aum * xrp_return
+        ratio = xrp_aum / price_adjusted_prior
+        if ratio < XRP_AUM_MIN_RATIO:
+            print(
+                f"\nABORT: xrpAUM ${xrp_aum / 1e6:.0f}M is {ratio:.0%} of price-adjusted prior "
+                f"${price_adjusted_prior / 1e6:.0f}M (threshold ≥{XRP_AUM_MIN_RATIO:.0%}).\n"
+                f"  Likely cause: missing ticker coverage. Not writing latest-etf-data.json — "
+                f"prior ${prior_xrp_aum / 1e6:.0f}M snapshot preserved.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        print(f"  xrpAUM regression check: {ratio:.0%} of prior — OK")
 
     # ── Flows ─────────────────────────────────────────────────────────────────────
     stored_date_str = existing.get("lastUpdated", "")
@@ -129,7 +170,7 @@ def main():
         print("Computing flows from stored AUM baseline...")
         btc_return = get_price_return(BTC_BENCHMARK)
         eth_return = get_price_return(ETH_BENCHMARK)
-        xrp_return = get_price_return(XRP_BENCHMARK)
+        # xrp_return already computed above for the regression guard (or 1.0 on bootstrap)
 
         btc_flow = compute_flow(btc_aum, existing["btcAUM"], btc_return)
         eth_flow = compute_flow(eth_aum, existing["ethAUM"], eth_return)
