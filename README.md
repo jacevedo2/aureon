@@ -2,8 +2,6 @@
   <img src="AureonLogo.png" alt="Aureon Logo" width="180">
 </p>
 
-<h1 align="center">🚀 Aureon</h1>
-
 <p align="center">
 <strong>
 An AI-powered investing assistant that combines portfolio management, market intelligence, ETF flows, and real-time insights into one seamless experience.
@@ -22,9 +20,9 @@ Aureon is a native iOS investing platform currently in development that helps in
 
 Rather than switching between multiple apps, Aureon brings market data, AI insights, and portfolio intelligence together into one seamless experience.
 
-My goal is simple:
+**My goal is simple:**
 
-> Help investors make better decisions by turning complex market data into clear, actionable insights.
+Help investors make better decisions by turning complex market data into clear, actionable insights.
 
 ---
 
