@@ -2,10 +2,10 @@
 // ETF Data Loader
 //
 // Exports:
-//   etfState          — live object { payload, source } — always current
+//   etfState          — live object { payload, source, volumeByTicker } — always current
 //   refreshEtfData()  — async fn; call to reload data and stamp lastUpdated
 //
-// Priority order on each refresh:
+// Priority order on each refresh (aggregate flow/AUM chain):
 //   1. COINGLASS_API_KEY env var — live CoinGlass V3 API (BTC + ETH; XRP falls through)
 //   2. ETF_DATA_URL env var      — optional remote JSON (full payload including XRP)
 //   3. latest-etf-data.json      ← edit this file + git push to update
@@ -15,6 +15,13 @@
 // XRP flow is sourced from ETF_DATA_URL or the committed JSON files.
 //
 // To update without a live key: edit latest-etf-data.json and git push.
+//
+// Per-fund volume (separate, additive-only chain — see COINGLASS_V4_BASE
+// section below): populated only when COINGLASS_API_KEY is set, only for
+// BTC/ETH tickers (no CoinGlass XRP list endpoint exists), exposed in the
+// response as payload.etfTodayVolume = { [ticker]: volumeUSD }. Never
+// blocks or fails the main payload; absent/failed volume simply means that
+// ticker is missing from the map, never a fabricated 0.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { readFileSync } from 'fs';
@@ -33,6 +40,100 @@ const REQUIRED_FIELDS = [
 
 const COINGLASS_BASE = 'https://open-api.coinglass.com/public/v3/etf';
 const FETCH_TIMEOUT_MS = 8000;
+
+// ── Per-fund volume (CoinGlass V4 "ETF List" endpoints) ────────────────────────
+// Separate API family from the V3 fund-flow-history endpoints above (different
+// base URL, different auth header, different response shape). Confirmed via
+// CoinGlass's published API docs (docs.coinglass.com/reference/bitcoin-etfs,
+// .../ethereum-etf-list) on 2026-08-21:
+//   GET https://open-api-v4.coinglass.com/api/etf/{bitcoin|ethereum}/list
+//   header: CG-API-KEY: <key>   (available on every plan tier, including free)
+// Each row includes `ticker` (matches Aureon's existing per-issuer tickers,
+// e.g. IBIT/GBTC/FBTC/ETHA/ETHE exactly) and `volume_usd`.
+//
+// IMPORTANT — no XRP equivalent exists. CoinGlass currently only publishes
+// this per-fund "list" endpoint (with volume) for bitcoin and ethereum;
+// there is no /api/etf/xrp/list. XRP only has /api/etf/xrp/flow-history,
+// which is aggregate (no per-ticker breakdown, no volume) — already the
+// endpoint used by fetchCoinGlassProduct above. So per-fund volume can only
+// be populated for the BTC/ETH breakdown tickers; XRP tickers (XRPC, XRP,
+// XRPZ, GXRP, TOXR, XRPR, XXRP, XRPD) will not appear in the returned map
+// until CoinGlass (or another vendor) exposes a comparable XRP endpoint.
+//
+// Semantics: CoinGlass's docs label volume_usd only as "Volume in USD" with
+// no explicit rolling-vs-session qualifier. Since these are conventional
+// exchange-listed ETF shares (Nasdaq/NYSE/Cboe), traded during a single
+// daily session — not a continuously-rolling market like crypto spot — and
+// the same response row carries `last_trade_time`/`market_status`, this is
+// treated as the current trading session's (calendar-day) volume and
+// exposed to iOS as `etfTodayVolume`, per Aureon's "don't mislabel rolling
+// data as today's" rule. If CoinGlass later documents this explicitly as a
+// rolling 24h figure, rename to etfVolume24h on both ends.
+const COINGLASS_V4_BASE = 'https://open-api-v4.coinglass.com';
+const VOLUME_PRODUCTS = ['bitcoin', 'ethereum']; // no 'xrp' — no such CoinGlass endpoint yet
+
+async function fetchCoinGlassVolumeList(apiKey, product) {
+  const url = `${COINGLASS_V4_BASE}/api/etf/${product}/list`;
+  try {
+    const res = await fetch(url, {
+      headers: { 'CG-API-KEY': apiKey },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+    const body = await res.json();
+
+    if (!res.ok) {
+      console.warn(`[ETF volume] ${product} HTTP ${res.status} — msg: ${body?.msg ?? JSON.stringify(body).slice(0, 120)}`);
+      return null;
+    }
+
+    const code = String(body?.code ?? body?.status ?? '');
+    if (code !== '0' && code !== '200') {
+      console.warn(`[ETF volume] ${product} non-zero code: ${code} msg: ${body?.msg}`);
+      return null;
+    }
+
+    const list = Array.isArray(body.data) ? body.data : Array.isArray(body.data?.list) ? body.data.list : null;
+    if (!list) {
+      console.warn(`[ETF volume] ${product} unexpected shape — keys: ${Object.keys(body).join(', ')}`);
+      return null;
+    }
+
+    const entries = {};
+    let matched = 0, missingVolume = 0;
+    for (const row of list) {
+      const ticker = row?.ticker;
+      if (!ticker) continue;
+      const vol = row?.volume_usd ?? row?.volumeUsd ?? null;
+      if (vol === null || vol === undefined) { missingVolume++; continue; }
+      entries[ticker] = vol;
+      matched++;
+    }
+    console.log(`[ETF volume] ${product} ✅ funds matched=${matched} missingVolume=${missingVolume} totalRows=${list.length}`);
+    return entries;
+
+  } catch (err) {
+    console.warn(`[ETF volume] ${product} fetch threw: ${err.message}`);
+    return null;
+  }
+}
+
+/// Fetches per-fund volume for every supported product and merges into one
+/// ticker-keyed map. Best-effort and additive only — a failure here never
+/// affects the main flow/AUM payload. Returns null (not {}) on total
+/// failure so the caller can choose to keep the previous cached map instead
+/// of wiping it.
+async function fetchETFVolumeMap(apiKey) {
+  console.log(`[ETF volume] ▶︎ requesting per-fund volume — products: ${VOLUME_PRODUCTS.join(', ')}`);
+  const results = await Promise.all(VOLUME_PRODUCTS.map(p => fetchCoinGlassVolumeList(apiKey, p)));
+  if (results.every(r => r === null)) {
+    console.warn('[ETF volume] ❌ all products failed — keeping previous volume map');
+    return null;
+  }
+  const merged = {};
+  for (const r of results) if (r) Object.assign(merged, r);
+  console.log(`[ETF volume] ✅ merged map — ${Object.keys(merged).length} tickers total`);
+  return merged;
+}
 
 function validate(obj) {
   if (!obj || typeof obj !== 'object') return false;
@@ -192,7 +293,11 @@ async function tryCoinGlass(apiKey) {
 }
 
 // Mutable state — the route always reads from this object.
-export const etfState = { payload: null, source: null };
+// volumeByTicker persists across refreshes independently of `payload`/`source`
+// (which describe only the flow/AUM chain) — a failed volume fetch keeps the
+// last-known map rather than clearing it, same "don't wipe good data on a
+// transient failure" convention as the missing-field handling in applyResponse.
+export const etfState = { payload: null, source: null, volumeByTicker: {} };
 
 export async function refreshEtfData() {
   let raw  = null;
@@ -239,9 +344,21 @@ export async function refreshEtfData() {
     console.warn(`[ETF loader] ⚠️  data is ${ageDays}d old (lastUpdated: ${raw.lastUpdated}) — status will show as stale in app`);
   }
 
-  etfState.payload = { ...raw };
+  // ── Per-fund volume (independent of the flow/AUM chain above) ─────────────
+  // Only attempted when a CoinGlass key is present — same credential gate as
+  // the live flow fetch, no new env var. Additive-only: never blocks or
+  // fails the main payload, and a failed/skipped fetch simply carries the
+  // previous map forward (see etfState.volumeByTicker init comment).
+  if (cgKey) {
+    const volumeMap = await fetchETFVolumeMap(cgKey);
+    if (volumeMap) etfState.volumeByTicker = volumeMap;
+  } else {
+    console.warn('[ETF volume] skipped — COINGLASS_API_KEY not set (per-fund volume will be absent, not zero)');
+  }
+
+  etfState.payload = { ...raw, etfTodayVolume: etfState.volumeByTicker };
   etfState.source  = src;
-  console.log(`[ETF loader] ✅ refreshed — source: ${src}, lastUpdated: ${raw.lastUpdated}, ageDays: ${ageDays ?? 'unknown'}`);
+  console.log(`[ETF loader] ✅ refreshed — source: ${src}, lastUpdated: ${raw.lastUpdated}, ageDays: ${ageDays ?? 'unknown'}, volumeTickers: ${Object.keys(etfState.volumeByTicker).length}`);
 }
 
 // Initial load at module startup
