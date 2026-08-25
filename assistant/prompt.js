@@ -79,8 +79,19 @@ No coin is open. Answer in 1–2 sentences. For chart questions, say "Open a coi
     ? mtf.map(r => `  ${r.tf ?? '?'}: ${r.trend ?? '—'}`).join('\n')
     : '  —';
 
+  // news items are objects — { headline, source, publishedAgo } — as sent by the
+  // iOS client's NewsService. `typeof h === 'string'` guards any caller still
+  // sending plain strings. Interpolating the object directly here used to render
+  // as the literal text "[object Object]" for every item — the model was
+  // receiving zero real headline content despite the News section always being
+  // present, which is why it fell back to general training knowledge instead of
+  // the specific headlines actually provided.
   const newsFmt = news.length
-    ? news.map((h, i) => `  ${i + 1}. ${h}`).join('\n')
+    ? news.map((h, i) => {
+        const item = typeof h === 'string' ? { headline: h } : h;
+        const meta = [item.source, item.publishedAgo].filter(Boolean).join(', ');
+        return `  ${i + 1}. ${item.headline}${meta ? ` (${meta})` : ''}`;
+      }).join('\n')
     : '  —';
 
   const macroPart = macro
@@ -173,5 +184,8 @@ ${mtfFmt}
 
 News:
 ${newsFmt}
+${news.length
+  ? 'If asked about news, cite these headlines specifically — do not substitute general/background knowledge for them.'
+  : 'No current headlines were provided. If asked about news, say plainly that no current headlines are available rather than describing general background or well-known narratives.'}
 ───────────────────────────────────────────────────────`;
 }
