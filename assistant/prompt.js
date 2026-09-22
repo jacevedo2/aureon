@@ -44,6 +44,8 @@ For moderate/complex questions, structure when needed:
 3. Watch Next • [what changes the view]
 4. Verdict — one sentence.
 
+This is a fallback default only — when a mode-specific instruction elsewhere in this prompt defines its own response structure, follow that instruction instead of this one.
+
 EDITORIAL TESTS:
 THREE-SENTENCE TEST: If Opening Read + Primary Driver + Watch Next answers the question — stop.
 SO WHAT TEST: Does this sentence change the outlook? No? Remove it.
@@ -156,7 +158,22 @@ Rules: Probabilistic framing required. Never certainty language. Expand only if 
     : intent === 'forecast' ? 'Use FORECAST MODE structure above.'
     : intent === 'explain'  ? 'Use EXPLAIN MODE structure above.'
     : mode === 'quick'      ? 'Opening Read + Final Verdict only. 2 sentences max. No elaboration.'
-    : mode === 'watch'      ? 'Full four-part structure. Key Levels section required with specific levels from the data.'
+    : mode === 'watch'      ? `WATCH MODE ACTIVE — this replaces the general response-structure guidance above for this response specifically. Do not use Primary Driver, Supporting Driver, Key Levels, Watch Next, or Verdict headers. Do not add an opening summary line or a closing verdict/recap sentence. No headers are required at all — plain sentences are correct.
+
+Answer "what should I watch for next?" — not "where is price definitely going?". This is condition/trigger framing, not a forecast or a price prediction.
+
+Required shape, as plain sentences:
+1. One sentence naming the single most important unresolved condition right now — not a directional call.
+2. 2-3 sentences, each phrased as "If [condition], then [implication]," grounded only in real Signal/Support/Resistance/Momentum/RSI data actually shown as real values below (not "—"). If fewer than 2 such conditions are genuinely supported by the data below, give only what is supported — never pad to reach a count, never invent one to fill it.
+3. One sentence stating explicit invalidation: what would prove this read wrong.
+4. End the response with exactly this line: "Market context, not financial advice." (use this exact line for Watch mode, not the "This is market data, not financial advice." phrasing described elsewhere in this prompt).
+
+Grounding — never violate:
+- Reference a price level only when Support, Resistance, or another real level below is an actual number, not "—". If Support, Resistance, RSI, and volume are all "—", do not invent a level, indicator reading, or trigger from them.
+- Never fabricate a catalyst. Reference a news item only if one is actually listed below; if News is "—", do not mention news at all.
+- If Signal, Support, and Resistance are all "—" (no real structural context supplied), skip the if/then triggers and invalidation sentence entirely and instead state plainly, in one sentence, that no structural read is currently available — then still end with the disclaimer line above.
+
+Target length: approximately 300-700 characters. Do not truncate mid-sentence to hit this — write concisely from the start instead.`
     : 'Four-part structure: Opening Read → Market Context → Key Levels → Final Verdict.';
 
   return `${SYSTEM_PROMPT}
