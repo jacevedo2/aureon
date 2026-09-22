@@ -112,7 +112,17 @@ ETH:  ${macro.eth?.price ? `$${Number(macro.eth.price).toLocaleString('en-US', {
   const q = (ctx.question ?? '').trim();
   const intent = classifyIntent(q);
 
-  const directAnswerRule = intent === 'decision' ? `
+  // mode === 'chart' is an explicit, deliberate signal from the dedicated
+  // fetchChartAnalysis path (Iteration 3.2) — never text the user typed. It
+  // must win over whatever classifyIntent() happens to guess from the
+  // question wording (discovered live: a chart question merely containing
+  // "explain" was silently reclassified as EXPLAIN MODE, bypassing this
+  // contract entirely). Gating these three intent-based rules on
+  // `mode !== 'chart'` — rather than checking mode inside classifyIntent()
+  // itself — keeps this fix local to prompt.js and leaves every non-chart
+  // request (quick/detailed/watch and all real Ask Aureon text questions)
+  // routed exactly as before, since mode is never 'chart' for any of them.
+  const directAnswerRule = mode !== 'chart' && intent === 'decision' ? `
 DIRECT ANSWER MODE ACTIVE. Maximum 4 sentences.
 
 ${DLM_DIRECT}
@@ -130,7 +140,7 @@ Q: "Are buyers in control?"
 Q: "Should I be worried?"
 ✓ "Depends on your timeframe. Structure is weak and sellers are still in control above $1.14. The key level to watch is $1.09 — a clean break there opens the next leg lower."` : '';
 
-  const forecastRule = intent === 'forecast' ? `
+  const forecastRule = mode !== 'chart' && intent === 'forecast' ? `
 FORECAST MODE ACTIVE. Target: 50–100 words.
 
 STRUCTURE — strictly in this order:
@@ -150,14 +160,44 @@ CORRECT example:
 
 Rules: Probabilistic framing required. Never certainty language. Expand only if user asks why.` : '';
 
-  const explainRule = intent === 'explain' ? EXPLAIN_MODE_RULE : '';
+  const explainRule = mode !== 'chart' && intent === 'explain' ? EXPLAIN_MODE_RULE : '';
 
   const activeRule = directAnswerRule || forecastRule || explainRule;
 
-  const lengthRule = intent === 'decision' ? 'Use DIRECT ANSWER MODE above. Maximum 4 sentences.'
+  const lengthRule = mode === 'chart' ? `CHART INTELLIGENCE MODE ACTIVE — this replaces the general response-structure guidance above for this response specifically. Do not use Primary Driver, Supporting Driver, Key Levels, Watch Next, or Verdict headers from that generic guidance. Do not give a trading read, a price target, or a trade command ("buy"/"sell"/"enter"/"exit").
+
+You were supplied a chart image and structured market data together. They have different jobs — never blur them:
+- The IMAGE is for visual structure only: candle/wick relationships, compression, breakout or rejection shape, overall visual trend, pattern geometry. Never try to read exact numbers off the image — no OCR of axis labels or price text.
+- The STRUCTURED DATA below (Coin/Price/Timeframe/Signal/Support/Resistance/etc.) is authoritative for every exact number, the timeframe, and OHLC values. If the image ever seems to suggest a different number than the structured data, the structured data wins — always.
+- Analyze only the visible chart range the image actually shows. Never reason about candles or price history outside that visible window — you were not given them and must not invent them.
+- Never claim RSI, volume, moving averages, or any indicator exists or was supplied unless a real value for it appears in the structured data below — none currently are. Never invent a support or resistance level beyond the visible high/low structured data actually gives you. Never claim a drawing, trendline, or annotation exists on the chart — the native chart does not render any today.
+
+Output exactly these sections, in this order, each on its own line with a blank line between:
+
+**Visible Structure**
+One to two sentences: the current visible trend/structure, grounded in what the image actually shows plus the supplied visible high/low and price.
+
+**Pattern**
+Name a pattern only when the image genuinely supports it, and always prefix it with exactly one of these four states — never a bare, unqualified pattern name:
+"Confirmed" — the complete structure is visually present.
+"Developing" — a partial structure is forming.
+"Resembles [pattern], but not confirmed" — some features present, a key confirming element is missing.
+"No clean pattern present" — this is a fully acceptable answer; never force a pattern label to sound more decisive than the image supports.
+
+**Key Levels**
+State only the visible high, visible low, and current price exactly as given in the structured data below. Never invent a support or resistance level from image pixels alone.
+
+**Invalidation**
+One sentence: what visible development would prove this read wrong, grounded only in the supplied chart state.
+
+**What to Watch**
+One sentence: the next observable condition to monitor.
+
+**Disclaimer**
+Output exactly: "Market context, not financial advice."`
+    : intent === 'decision' ? 'Use DIRECT ANSWER MODE above. Maximum 4 sentences.'
     : intent === 'forecast' ? 'Use FORECAST MODE structure above.'
     : intent === 'explain'  ? 'Use EXPLAIN MODE structure above.'
-    : mode === 'chart'      ? `CHART IMAGE CHECK ACTIVE — this replaces the general response-structure guidance above for this response specifically. This is an image-description integration check, not a market analysis report — do not produce Primary Driver / Supporting Driver / Key Levels / Watch Next / Verdict, and do not give a trading read. Describe only what is visible in the supplied chart image, in 2-3 sentences: the chart type (candlestick, line, or area), the dominant visible direction, and one structural observation. If no image was actually supplied, say so plainly instead of describing one.`
     : mode === 'quick'      ? 'Opening Read + Final Verdict only. 2 sentences max. No elaboration.'
     : mode === 'watch'      ? `WATCH MODE ACTIVE — this replaces the general response-structure guidance above for this response specifically. Do not use Primary Driver, Supporting Driver, Key Levels, Watch Next, or Verdict headers. Do not add an opening summary line or a closing verdict/recap sentence. No headers are required at all — plain sentences are correct.
 
