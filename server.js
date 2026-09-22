@@ -73,7 +73,18 @@ if (existsSync(envFile)) {
 }
 
 const app = express();
-app.use(express.json());
+// Default express.json() limit is 100kb — enough for every text-only request
+// this API has ever sent, but far too small for a base64-encoded chart image
+// (Iteration 3.2, /api/assistant's optional chartImage field). validate.js
+// separately caps chartImage.data at ~4.5M base64 chars (~3.375MB raw) with a
+// specific, attributable error; this ceiling only needs to comfortably clear
+// that plus market/history/context overhead (a few KB, negligible). 5mb is
+// applied globally rather than scoped to just /api/assistant: express.json()
+// is already mounted once, ahead of every route, and splitting it into a
+// route-specific instance would require restructuring that mount order —
+// more architectural churn than a single, still-bounded 5mb ceiling justifies
+// for a small internal API with no public file-upload surface.
+app.use(express.json({ limit: '5mb' }));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
@@ -156,6 +167,12 @@ app.post('/api/assistant', async (req, res) => {
   console.log('[api/assistant] HIT — request received');
   const question = req.body?.question ?? '(no question)';
   console.log('[api/assistant] question:', question.slice(0, 120));
+  // Iteration 3.2 — length/mediaType only, NEVER the base64 data itself.
+  if (req.body?.chartImage) {
+    const ci = req.body.chartImage;
+    console.log('[api/assistant] chartImage present — mediaType:', ci?.mediaType,
+                'dataLen:', typeof ci?.data === 'string' ? ci.data.length : 'n/a');
+  }
 
   const fallback = 'Market data is available, but AI response is temporarily unavailable.';
 

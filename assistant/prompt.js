@@ -157,6 +157,7 @@ Rules: Probabilistic framing required. Never certainty language. Expand only if 
   const lengthRule = intent === 'decision' ? 'Use DIRECT ANSWER MODE above. Maximum 4 sentences.'
     : intent === 'forecast' ? 'Use FORECAST MODE structure above.'
     : intent === 'explain'  ? 'Use EXPLAIN MODE structure above.'
+    : mode === 'chart'      ? `CHART IMAGE CHECK ACTIVE — this replaces the general response-structure guidance above for this response specifically. This is an image-description integration check, not a market analysis report — do not produce Primary Driver / Supporting Driver / Key Levels / Watch Next / Verdict, and do not give a trading read. Describe only what is visible in the supplied chart image, in 2-3 sentences: the chart type (candlestick, line, or area), the dominant visible direction, and one structural observation. If no image was actually supplied, say so plainly instead of describing one.`
     : mode === 'quick'      ? 'Opening Read + Final Verdict only. 2 sentences max. No elaboration.'
     : mode === 'watch'      ? `WATCH MODE ACTIVE — this replaces the general response-structure guidance above for this response specifically. Do not use Primary Driver, Supporting Driver, Key Levels, Watch Next, or Verdict headers. Do not add an opening summary line or a closing verdict/recap sentence. No headers are required at all — plain sentences are correct.
 

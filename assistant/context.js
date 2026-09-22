@@ -5,7 +5,7 @@
  */
 
 export function buildContext(body) {
-  const { question, history = [], market = null, mode = 'detailed', macro = null } = body;
+  const { question, history = [], market = null, mode = 'detailed', macro = null, chartImage = null } = body;
 
   // Normalize conversation history.
   // Drop any leading assistant turn (the greeting) so messages start with user.
@@ -20,7 +20,28 @@ export function buildContext(body) {
   const lastIsQ = msgs.length > 0 &&
     msgs.at(-1).role === 'user' &&
     msgs.at(-1).content === q;
-  if (!lastIsQ) msgs.push({ role: 'user', content: q });
+
+  // Iteration 3.2 — multimodal chart image (already validated by validate.js
+  // when present: object shape, non-empty data, allowed mediaType). Only the
+  // CURRENT turn ever carries the image, as an Anthropic multimodal content-
+  // block array (image block first, text block second) — every prior history
+  // turn stays exactly the plain-string content it already is today. When
+  // chartImage is absent, currentUserContent is just `q`, so the two branches
+  // below reduce to byte-identical behavior to the pre-3.2 code.
+  const currentUserContent = chartImage
+    ? [
+        { type: 'image', source: { type: 'base64', media_type: chartImage.mediaType, data: chartImage.data } },
+        { type: 'text', text: q },
+      ]
+    : q;
+
+  if (lastIsQ && chartImage) {
+    // The plain-text last entry must be upgraded to carry the image rather
+    // than silently staying text-only just because its text matched.
+    msgs[msgs.length - 1] = { role: 'user', content: currentUserContent };
+  } else if (!lastIsQ) {
+    msgs.push({ role: 'user', content: currentUserContent });
+  }
 
   // Normalize market data (all fields are optional).
   const coin = market?.coin ?? null;
