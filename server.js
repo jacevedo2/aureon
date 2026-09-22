@@ -267,7 +267,7 @@ app.get('/privacy', (req, res) => {
   <p>Aureon uses the following third-party services:</p>
   <ul>
     <li><strong>CoinGecko</strong> — for cryptocurrency market data (no personal data shared)</li>
-    <li><strong>Anthropic Claude API</strong> — to power Aureon AI responses (messages are processed but not retained)</li>
+    <li><strong>Anthropic Claude API</strong> — to power Aureon AI responses (messages are processed but not retained). When the Analyze Chart feature is used, the chart snapshot and related chart context are also sent to Anthropic for processing; Aureon does not store chart snapshots as files</li>
     <li><strong>Kraken API</strong> — for live order book data (no personal data shared)</li>
     <li><strong>TradingView</strong> — for candlestick chart rendering (no personal data shared)</li>
     <li><strong>Resend</strong> — for transactional emails such as verification and password reset</li>

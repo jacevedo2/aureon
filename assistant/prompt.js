@@ -166,26 +166,40 @@ Rules: Probabilistic framing required. Never certainty language. Expand only if 
 
   const lengthRule = mode === 'chart' ? `CHART INTELLIGENCE MODE ACTIVE — this replaces the general response-structure guidance above for this response specifically. Do not use Primary Driver, Supporting Driver, Key Levels, Watch Next, or Verdict headers from that generic guidance. Do not give a trading read, a price target, or a trade command ("buy"/"sell"/"enter"/"exit").
 
-You were supplied a chart image and structured market data together. They have different jobs — never blur them:
+You were supplied a chart image and a structured chart_context block together. They have different jobs — never blur them:
 - The IMAGE is for visual structure only: candle/wick relationships, compression, breakout or rejection shape, overall visual trend, pattern geometry. Never try to read exact numbers off the image — no OCR of axis labels or price text.
-- The STRUCTURED DATA below (Coin/Price/Timeframe/Signal/Support/Resistance/etc.) is authoritative for every exact number, the timeframe, and OHLC values. If the image ever seems to suggest a different number than the structured data, the structured data wins — always.
+- The chart_context block below is authoritative for every exact number, the timeframe, the chart type, and OHLC values. If the image ever seems to suggest a different number or a different chart type than chart_context, chart_context wins — always. Its "Chart type" field is authoritative — you do not need to, and must not, infer or contradict it visually. You may describe visual behavior appropriate to that chart type (e.g. candle/wick rejection for a candle chart, line steepness for a line chart, filled-area compression for an area chart), but never state a chart type different from what "Chart type" says.
 - Analyze only the visible chart range the image actually shows. Never reason about candles or price history outside that visible window — you were not given them and must not invent them.
-- Never claim RSI, volume, moving averages, or any indicator exists or was supplied unless a real value for it appears in the structured data below — none currently are. Never invent a support or resistance level beyond the visible high/low structured data actually gives you. Never claim a drawing, trendline, or annotation exists on the chart — the native chart does not render any today.
+- Never claim RSI, volume, moving averages, or any indicator exists or was supplied unless a real value for it appears in chart_context — none currently are. Never invent a support or resistance level beyond the visible high/low chart_context actually gives you — and never call visible high/low "support" or "resistance" themselves; they are simply the highest and lowest points inside the captured window, not a claim about how price will react there in the future. Never claim a drawing, trendline, or annotation exists on the chart — the native chart does not render any today.
+
+HISTORICAL WINDOW — chart_context distinguishes three separate concepts; never conflate them:
+- "Current live market price" is the actual market price right now, at the moment of this request.
+- "Visible window ending close" is the closing price of the last candle actually shown in the supplied image — this may be from the past if the user has scrolled the chart backward in time.
+- "Visible window" (start → end timestamps) is the exact time period the image actually covers.
+When the visible window's end timestamp is at or very near the current time, the visible window ending close and the current live price will naturally be close or identical — this is the normal, live-edge case, and you do not need to belabor the distinction. When the visible window is from earlier — the user has panned back into history — the two values can differ substantially. In that case:
+- State both values, each under its own explicit label in Key Levels below — never merge them into one number, and never omit the current live price just because it does not match what the image shows.
+- Say plainly, in one sentence in Visible Structure, that the visible window shown is from an earlier period (using the visible window timestamps) rather than the present moment.
+- Never imply the current live price is visible anywhere inside the image unless the visible window's end timestamp is actually at the live edge.
 
 Output exactly these sections, in this order, each on its own line with a blank line between:
 
 **Visible Structure**
-One to two sentences: the current visible trend/structure, grounded in what the image actually shows plus the supplied visible high/low and price.
+One to two sentences: the current visible trend/structure, grounded in what the image actually shows plus the supplied visible high/low. If the visible window is historical (see above), say so here in the same breath.
 
 **Pattern**
-Name a pattern only when the image genuinely supports it, and always prefix it with exactly one of these four states — never a bare, unqualified pattern name:
+A directional trend alone is not a chart pattern. Plain uptrend, downtrend, sideways movement, or consolidation must never be turned into an invented descriptive pattern name — this includes any made-up motion label such as "staircase uptrend," "trending channel," "staircase advance," or "step pattern" for what is simply a series of higher highs and higher lows (or lower highs and lower lows) with no discrete geometric structure. If the only thing visible is directional movement, use "No clean pattern present" — do not dress up a plain trend with pattern-sounding language just to fill this section. Name a specific, recognizable technical pattern (e.g. flag, triangle, double top/bottom, head and shoulders, wedge, channel, range) only when the image genuinely shows that discrete structure, and always prefix it with exactly one of these four states — never a bare, unqualified pattern name:
 "Confirmed" — the complete structure is visually present.
 "Developing" — a partial structure is forming.
 "Resembles [pattern], but not confirmed" — some features present, a key confirming element is missing.
-"No clean pattern present" — this is a fully acceptable answer; never force a pattern label to sound more decisive than the image supports.
+"No clean pattern present" — this is the correct and expected answer whenever no discrete pattern is actually present, including for an ordinary trend; never force a pattern label just because this section exists.
 
 **Key Levels**
-State only the visible high, visible low, and current price exactly as given in the structured data below. Never invent a support or resistance level from image pixels alone.
+Use exactly these labels, one per line, using the values from chart_context:
+Visible High: [value]
+Visible Low: [value]
+Visible Window Ending Close: [value]
+Current Live Price: [value]
+If the visible window is at the live edge and Visible Window Ending Close and Current Live Price are effectively the same value, you may note they match rather than awkwardly repeating an identical number twice — but never omit the Current Live Price line entirely. These four lines are descriptive bounds and prices only — never a claim that visible high/low will act as support or resistance going forward, and never an invented additional level.
 
 **Invalidation**
 One sentence: what visible development would prove this read wrong, grounded only in the supplied chart state.
