@@ -16,6 +16,7 @@ import { buildContext } from './assistant/context.js';
 import { buildPrompt }  from './assistant/prompt.js';
 import { callModel }    from './assistant/model.js';
 import { etfState, refreshEtfData } from './etf-loader.js';
+import { buildEtfResponse } from './etf-response.js';
 import { dbPath }       from './auth/db.js';
 import authRoutes       from './auth/routes.js';
 import userRoutes       from './user/routes.js';
@@ -93,37 +94,15 @@ app.use('/api/alerts', alertsRouter);
 app.use('/api/conversations', conversationsRouter);
 app.use('/api/predict', predictRouter);
 
-// Shared helper — builds the /api/etf response body from current etfState.
-function buildEtfResponse(extra = {}) {
-  const { payload, source } = etfState;
-  const ageMs   = payload.lastUpdated ? Date.now() - new Date(payload.lastUpdated).getTime() : null;
-  const ageDays = ageMs != null ? Math.floor(ageMs / 86_400_000) : null;
-  const isStale = ageDays != null && ageDays > 3;
-  const staleReason = (source === 'coinglass-live' || source === 'remote-url')
-    ? null
-    : source === 'latest-file'
-      ? 'Serving committed file — update latest-etf-data.json and git push, or set COINGLASS_API_KEY for live data'
-      : 'Serving hardcoded fallback — no live source or committed file is current';
-
-  return {
-    ...payload,
-    _meta: {
-      source,
-      isStale,
-      ageDays,
-      staleReason: isStale ? staleReason : null,
-      servedAt: new Date().toISOString(),
-      ...extra,
-    },
-  };
-}
+// /api/etf responses are built by etf-response.js, which withholds every flow/AUM/volume figure
+// that has not been verified (currently all of them) — see that file for the reasoning.
 
 // GET /api/etf — ETF flow data served to the iOS app.
 // Returns cached state from the last successful refreshEtfData() call.
 // To trigger a server-side re-fetch, use POST /api/etf/refresh instead.
 app.get('/api/etf', (req, res) => {
-  const body = buildEtfResponse();
-  console.log(`[/api/etf GET] source: ${body._meta.source}, lastUpdated: ${etfState.payload.lastUpdated}, ageDays: ${body._meta.ageDays ?? '?'}, isStale: ${body._meta.isStale}`);
+  const body = buildEtfResponse(etfState);
+  console.log(`[/api/etf GET] source: ${body._meta.source}, flowsVerified: ${body.flowsVerified} (figures withheld unless verified)`);
   res.json(body);
 });
 
@@ -137,7 +116,7 @@ app.post('/api/etf/refresh', async (req, res) => {
   if (msSinceLastRefresh < FORCE_REFRESH_RATE_LIMIT_MS) {
     const retrySec = Math.ceil((FORCE_REFRESH_RATE_LIMIT_MS - msSinceLastRefresh) / 1000);
     console.log(`[/api/etf/refresh] rate-limited — retry in ${retrySec}s`);
-    return res.json(buildEtfResponse({ refreshResult: 'rate-limited', retryAfterSeconds: retrySec }));
+    return res.json(buildEtfResponse(etfState, { refreshResult: 'rate-limited', retryAfterSeconds: retrySec }));
   }
 
   lastForceRefreshMs = now;
@@ -151,7 +130,9 @@ app.post('/api/etf/refresh', async (req, res) => {
   const refreshResult  = dataChanged ? 'updated' : 'unchanged';
   console.log(`[/api/etf/refresh] complete — source: ${etfState.source}, lastUpdated: ${newLastUpdated}, result: ${refreshResult}`);
 
-  res.json(buildEtfResponse({ refreshResult, prevLastUpdated, dataChanged }));
+  // prevLastUpdated / dataChanged are intentionally not echoed: they would expose the
+  // unverified file's date. buildEtfResponse drops unknown extra keys regardless.
+  res.json(buildEtfResponse(etfState, { refreshResult }));
 });
 
 // iOS Safari requires this exact MIME type for the web manifest
