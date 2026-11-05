@@ -1,0 +1,148 @@
+{
+ "generated_utc": "2026-11-04T12:34:46.512854+00:00",
+ "pinned_ledger": 108110074,
+ "window_hours": 24,
+ "threshold_xrp": 500000,
+ "wallets": [
+  {
+   "id": "W2",
+   "address": "rDsbeomae4FXwgQTJp9Rs64Qg9vDiTCdBv",
+   "entity_hint": "Bitstamp (hint)",
+   "ownership": "third_party",
+   "provenance": "Third-party attribution (XRPSCAN, 'verified' flag). No owner-published confirmation found.",
+   "evidence_url": null,
+   "verified": true,
+   "verification_failure": null,
+   "status": "ok",
+   "window_complete": true,
+   "coverage_note": null,
+   "pages": 4,
+   "coverage": {
+    "complete": true,
+    "requested_hours": 24,
+    "opening_ledger_exclusive": 108088641,
+    "closing_ledger": 108110074,
+    "covered_from_utc": "2026-11-03T12:34:46.512854+00:00",
+    "covered_hours": 24.0,
+    "basis": "full requested window"
+   },
+   "duplicates_dropped": 0,
+   "boundary_ledger_excluded": null,
+   "counts": {
+    "payments_in": 58,
+    "payments_out": 112,
+    "failed_tec": 0,
+    "non_payment": 0,
+    "non_xrp_or_unavailable": 0,
+    "partial_payment_flag": 0
+   },
+   "inflow_xrp": 2474711.242616,
+   "outflow_xrp": 5228373.718685,
+   "fees_paid_xrp": 1.12,
+   "reconciliation": {
+    "ledger_delta_xrp": -2753663.596069,
+    "computed_xrp": -2753663.596069,
+    "residual_xrp": 0.0,
+    "opening_ledger": 108088641,
+    "closing_ledger": 108110074,
+    "covers": "ledgers (108088641, 108110074]",
+    "window_complete": true,
+    "covered_from_utc": "2026-11-03T12:34:46.512854+00:00",
+    "covered_hours": 24.0
+   }
+  },
+  {
+   "id": "W3",
+   "address": "rEb8TK3gBgk5auZkwc6sHnwrGVJH8DuaLh",
+   "entity_hint": "Binance (hint)",
+   "ownership": "third_party",
+   "provenance": "Third-party attribution (XRPSCAN, 'verified' flag). No owner-published confirmation found.",
+   "evidence_url": null,
+   "verified": true,
+   "verification_failure": null,
+   "status": "ok",
+   "window_complete": true,
+   "coverage_note": null,
+   "pages": 1,
+   "coverage": {
+    "complete": true,
+    "requested_hours": 24,
+    "opening_ledger_exclusive": null,
+    "closing_ledger": 108110074,
+    "covered_from_utc": "2026-11-03T12:34:46.512854+00:00",
+    "covered_hours": 24.0,
+    "basis": "full requested window"
+   },
+   "duplicates_dropped": 0,
+   "boundary_ledger_excluded": null,
+   "counts": {
+    "payments_in": 0,
+    "payments_out": 0,
+    "failed_tec": 0,
+    "non_payment": 0,
+    "non_xrp_or_unavailable": 0,
+    "partial_payment_flag": 0
+   },
+   "inflow_xrp": 0.0,
+   "outflow_xrp": 0.0,
+   "fees_paid_xrp": 0.0,
+   "reconciliation": null
+  }
+ ],
+ "set": {
+  "totals_verified": true,
+  "totals_withheld": false,
+  "withheld_reasons": {},
+  "inbound_xrp": 2474711.242616,
+  "outbound_xrp": 5228373.718685,
+  "net_xrp": -2753662.476069,
+  "between_monitored_xrp": 0.0,
+  "n_inbound": 58,
+  "n_outbound": 112,
+  "n_between": 0,
+  "coverage": "partial: only explicitly configured addresses are monitored; counterparties are unknown unless configured"
+ },
+ "transfers": [
+  {
+   "hash": "92DADE5FF6C23DA5A514FF1AB861D02844828E69AB27EEC9078026320E63CD0E",
+   "ts": 1793790410,
+   "amount_xrp": 3312930.18,
+   "direction": "out",
+   "monitored": "rDsbeomae4FXwgQTJp9Rs64Qg9vDiTCdBv",
+   "monitored_id": "W2",
+   "source": "rDsbeomae4FXwgQTJp9Rs64Qg9vDiTCdBv",
+   "destination": "rXzRVoohqvahY4zyUrfmznpVgkLJsDCtd",
+   "counterparty_ownership": "unknown",
+   "counterparty_monitored": false,
+   "ledger": 108108729,
+   "flow_class": "unclassified",
+   "verify_url": "https://livenet.xrpl.org/transactions/92DADE5FF6C23DA5A514FF1AB861D02844828E69AB27EEC9078026320E63CD0E"
+  },
+  {
+   "hash": "0379A31CC3A3DE434CD6F25FBF8A5308115F6FB38D69AB8831C532ECCBED54AD",
+   "ts": 1793728481,
+   "amount_xrp": 886675.847775,
+   "direction": "in",
+   "monitored": "rDsbeomae4FXwgQTJp9Rs64Qg9vDiTCdBv",
+   "monitored_id": "W2",
+   "source": "r4nydGjxDBn2VDMqmDxx2oZQGCcEWKPs8F",
+   "destination": "rDsbeomae4FXwgQTJp9Rs64Qg9vDiTCdBv",
+   "counterparty_ownership": "unknown",
+   "counterparty_monitored": false,
+   "ledger": 108093316,
+   "flow_class": "unclassified",
+   "verify_url": "https://livenet.xrpl.org/transactions/0379A31CC3A3DE434CD6F25FBF8A5308115F6FB38D69AB8831C532ECCBED54AD"
+  }
+ ],
+ "transfers_complete": true,
+ "transfer_verification": [
+  {
+   "hash": "92DADE5FF6C23DA5A514FF1AB861D02844828E69AB27EEC9078026320E63CD0E",
+   "match": true
+  },
+  {
+   "hash": "0379A31CC3A3DE434CD6F25FBF8A5308115F6FB38D69AB8831C532ECCBED54AD",
+   "match": true
+  }
+ ]
+}
