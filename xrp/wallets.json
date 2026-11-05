@@ -1,0 +1,11 @@
+{
+  "_note": "Explicitly configured, read-only XRP Ledger addresses. Ownership is NOT confirmed for any of them: they are third-party attributions only (no exchange publishes an owner-confirmed address list). Entity names are deliberately not stored in this public repository; optional display hints can be supplied through the XRP_ENTITY_HINTS environment variable.",
+  "window_hours": 24,
+  "large_transfer_threshold_xrp": 500000,
+  "max_pages_per_wallet": 40,
+  "wallets": [
+    { "id": "W1", "address": "rLHzPsX6oXkzU2qL12kHCH8G8cnZv1rBJh", "ownership": "third_party", "provenance": "Third-party attribution; not confirmed by the exchange.", "evidence_url": null },
+    { "id": "W2", "address": "rDsbeomae4FXwgQTJp9Rs64Qg9vDiTCdBv", "ownership": "third_party", "provenance": "Third-party attribution; not confirmed by the exchange.", "evidence_url": null },
+    { "id": "W3", "address": "rEb8TK3gBgk5auZkwc6sHnwrGVJH8DuaLh", "ownership": "third_party", "provenance": "Third-party attribution; not confirmed by the exchange.", "evidence_url": null }
+  ]
+}

@@ -24,6 +24,9 @@ import portfolioRouter  from './portfolio/routes.js';
 import alertsRouter          from './alerts/routes.js';
 import conversationsRouter   from './conversations/routes.js';
 import predictRouter         from './predict/routes.js';
+import { createXrpService } from './xrp/service.js';
+import { createXrpRouter }  from './xrp/routes.js';
+import { loadXrpConfig }    from './xrp/config.js';
 
 // ── Startup diagnostics ───────────────────────────────────────────────────────
 const apiKeyPresent = !!process.env.ANTHROPIC_API_KEY;
@@ -93,6 +96,11 @@ app.use('/api/portfolio', portfolioRouter);
 app.use('/api/alerts', alertsRouter);
 app.use('/api/conversations', conversationsRouter);
 app.use('/api/predict', predictRouter);
+
+// Read-only XRP Ledger wallet monitor (disabled unless XRP_WALLETS_ENABLED=true; see xrp/config.js).
+const xrpCfg = loadXrpConfig();
+const xrpService = createXrpService({ cfg: xrpCfg });
+app.use('/api/xrp', createXrpRouter(xrpService));
 
 // /api/etf responses are built by etf-response.js, which withholds every flow/AUM/volume figure
 // that has not been verified (currently all of them) — see that file for the reasoning.
@@ -351,3 +359,5 @@ app.get('/terms', (req, res) => {
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, '0.0.0.0', () => console.log(`Aureon → listening on 0.0.0.0:${PORT}`));
+console.log('[startup] XRP wallet monitor:        ', xrpCfg.enabled ? 'enabled' : xrpCfg.configError ? `NOT STARTED — ${xrpCfg.configError}` : 'disabled (set XRP_WALLETS_ENABLED=true to enable)');
+xrpService.start();   // no-op unless enabled; first scan runs in the background
