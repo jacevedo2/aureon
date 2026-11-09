@@ -27,6 +27,8 @@ import predictRouter         from './predict/routes.js';
 import { createXrpService } from './xrp/service.js';
 import { createXrpRouter }  from './xrp/routes.js';
 import { loadXrpConfig }    from './xrp/config.js';
+import { createFlowLiveRouter } from './flow/live-routes.js';
+import { requireAuth } from './auth/middleware.js';
 
 // ── Startup diagnostics ───────────────────────────────────────────────────────
 const apiKeyPresent = !!process.env.ANTHROPIC_API_KEY;
@@ -88,6 +90,10 @@ const app = express();
 // route-specific instance would require restructuring that mount order —
 // more architectural churn than a single, still-bounded 5mb ceiling justifies
 // for a small internal API with no public file-upload surface.
+// Private live BTC Flow snapshot (flow/live-routes.js). Mounted BEFORE the global 5mb parser: its publish route enforces its own 16 KB limit.
+// Publishing is inert unless FLOW_PUBLISH_SECRET (>= 32 chars) is set in the environment; reading needs the normal user token.
+app.use('/api/flow', createFlowLiveRouter({ requireAuth }));
+
 app.use(express.json({ limit: '5mb' }));
 
 app.use('/api/auth', authRoutes);

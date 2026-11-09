@@ -1,0 +1,91 @@
+{
+ "schemaVersion": 1,
+ "id": "live-btc-usd",
+ "mode": "live-monitoring",
+ "asset": "BTC",
+ "pair": "BTC/USD",
+ "source": {
+  "venue": "Kraken",
+  "market": "spot",
+  "provider": "Kraken public REST",
+  "scope": "Kraken spot only; not the whole market"
+ },
+ "window": {
+  "from": "2025-10-11T23:30:00.000Z",
+  "to": "2025-10-12T00:00:00.000Z",
+  "seconds": 1800
+ },
+ "observation": {
+  "tradeCount": 457,
+  "malformedCount": 0,
+  "firstTradeAt": "2025-10-11T23:30:00.000Z",
+  "lastTradeAt": "2025-10-11T23:59:57.000Z",
+  "lastProviderReceiptAt": "2025-10-11T23:59:55.000Z",
+  "capturedAt": "2025-10-12T00:00:30.000Z"
+ },
+ "activity": {
+  "tradeCount": 457,
+  "notionalUsd": 3863.652219,
+  "baseVolume": null,
+  "largestTradeShare": 0.030184
+ },
+ "series": [
+  {
+   "start": "2025-10-11T23:30:00.000Z",
+   "notionalUsd": 644.674232,
+   "tradeCount": 75
+  },
+  {
+   "start": "2025-10-11T23:35:00.000Z",
+   "notionalUsd": 511.19289,
+   "tradeCount": 73
+  },
+  {
+   "start": "2025-10-11T23:40:00.000Z",
+   "notionalUsd": 738.531974,
+   "tradeCount": 81
+  },
+  {
+   "start": "2025-10-11T23:45:00.000Z",
+   "notionalUsd": 723.976298,
+   "tradeCount": 77
+  },
+  {
+   "start": "2025-10-11T23:50:00.000Z",
+   "notionalUsd": 596.683187,
+   "tradeCount": 78
+  },
+  {
+   "start": "2025-10-11T23:55:00.000Z",
+   "notionalUsd": 648.593638,
+   "tradeCount": 73
+  }
+ ],
+ "comparison": null,
+ "assessment": "not-assessed",
+ "event": null,
+ "baseline": {
+  "eligible": false,
+  "baselineCoverage": 0.2118,
+  "windowsInBaseline": 853,
+  "windowsExpected": 4027,
+  "requiredCoverage": 0.8
+ },
+ "monitoring": {
+  "coveredThrough": "2025-10-12T00:00:00.000Z",
+  "collectionAgeSeconds": 35,
+  "gapCount": 0,
+  "halted": false
+ },
+ "verdict": "withheld",
+ "quality": {
+  "state": "withheld",
+  "coverageVerified": true,
+  "completeBuckets": 6,
+  "totalBuckets": 6,
+  "reasons": [
+   "baseline-coverage"
+  ],
+  "detail": "The detector declined to assess this window; the figures are observed but no unusual-activity claim is made."
+ }
+}
