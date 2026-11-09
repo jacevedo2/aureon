@@ -1,0 +1,92 @@
+{
+ "schemaVersion": 1,
+ "id": "live-btc-usd",
+ "mode": "live-monitoring",
+ "asset": "BTC",
+ "pair": "BTC/USD",
+ "source": {
+  "venue": "Kraken",
+  "market": "spot",
+  "provider": "Kraken public REST",
+  "scope": "Kraken spot only; not the whole market"
+ },
+ "window": {
+  "from": "2025-10-24T23:30:00.000Z",
+  "to": "2025-10-25T00:00:00.000Z",
+  "seconds": 1800
+ },
+ "observation": {
+  "tradeCount": 225,
+  "malformedCount": 0,
+  "firstTradeAt": "2025-10-24T23:30:00.000Z",
+  "lastTradeAt": "2025-10-24T23:59:57.000Z",
+  "lastProviderReceiptAt": "2025-10-24T23:59:55.000Z",
+  "capturedAt": "2025-10-25T00:00:30.000Z"
+ },
+ "activity": {
+  "tradeCount": 225,
+  "notionalUsd": 1875.669762,
+  "baseVolume": null,
+  "largestTradeShare": 0.022086
+ },
+ "series": [
+  {
+   "start": "2025-10-24T23:30:00.000Z",
+   "notionalUsd": 336.791438,
+   "tradeCount": 45
+  },
+  {
+   "start": "2025-10-24T23:35:00.000Z",
+   "notionalUsd": 292.48878,
+   "tradeCount": 37
+  },
+  {
+   "start": "2025-10-24T23:40:00.000Z",
+   "notionalUsd": 373.563038,
+   "tradeCount": 43
+  },
+  {
+   "start": "2025-10-24T23:45:00.000Z",
+   "notionalUsd": 320.052564,
+   "tradeCount": 36
+  },
+  {
+   "start": "2025-10-24T23:50:00.000Z",
+   "notionalUsd": 208.743632,
+   "tradeCount": 27
+  },
+  {
+   "start": "2025-10-24T23:55:00.000Z",
+   "notionalUsd": 344.03031,
+   "tradeCount": 37
+  }
+ ],
+ "comparison": {
+  "typicalNotionalUsd": 2512.152619,
+  "ratio": 0.746638
+ },
+ "assessment": "typical",
+ "event": null,
+ "baseline": {
+  "eligible": true,
+  "baselineCoverage": 1,
+  "windowsInBaseline": 4027,
+  "windowsExpected": 4027,
+  "requiredCoverage": 0.8
+ },
+ "monitoring": {
+  "coveredThrough": "2025-10-25T00:00:00.000Z",
+  "collectionAgeSeconds": 35,
+  "gapCount": 0,
+  "halted": false
+ },
+ "verdict": "normal",
+ "quality": {
+  "state": "verified",
+  "coverageVerified": true,
+  "completeBuckets": 6,
+  "totalBuckets": 6,
+  "reasons": [],
+  "detail": "Every 5-minute bucket in the window is complete under the monitor's verified coverage, and the detector evaluated it."
+ }
+}

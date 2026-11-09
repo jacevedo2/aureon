@@ -1,0 +1,102 @@
+{
+ "schemaVersion": 1,
+ "id": "live-btc-usd",
+ "mode": "live-monitoring",
+ "asset": "BTC",
+ "pair": "BTC/USD",
+ "source": {
+  "venue": "Kraken",
+  "market": "spot",
+  "provider": "Kraken public REST",
+  "scope": "Kraken spot only; not the whole market"
+ },
+ "window": {
+  "from": "2025-10-24T13:05:00.000Z",
+  "to": "2025-10-24T13:35:00.000Z",
+  "seconds": 1800
+ },
+ "observation": {
+  "tradeCount": 708,
+  "malformedCount": 0,
+  "firstTradeAt": "2025-10-24T13:05:00.000Z",
+  "lastTradeAt": "2025-10-24T13:34:57.000Z",
+  "lastProviderReceiptAt": "2025-10-24T13:34:55.000Z",
+  "capturedAt": "2025-10-24T13:35:30.000Z"
+ },
+ "activity": {
+  "tradeCount": 708,
+  "notionalUsd": 5441.190775,
+  "baseVolume": null,
+  "largestTradeShare": 0.014514
+ },
+ "series": [
+  {
+   "start": "2025-10-24T13:05:00.000Z",
+   "notionalUsd": 430.210608,
+   "tradeCount": 55
+  },
+  {
+   "start": "2025-10-24T13:10:00.000Z",
+   "notionalUsd": 637.644358,
+   "tradeCount": 64
+  },
+  {
+   "start": "2025-10-24T13:15:00.000Z",
+   "notionalUsd": 568.11885,
+   "tradeCount": 71
+  },
+  {
+   "start": "2025-10-24T13:20:00.000Z",
+   "notionalUsd": 547.126433,
+   "tradeCount": 67
+  },
+  {
+   "start": "2025-10-24T13:25:00.000Z",
+   "notionalUsd": 458.678981,
+   "tradeCount": 59
+  },
+  {
+   "start": "2025-10-24T13:30:00.000Z",
+   "notionalUsd": 2799.411545,
+   "tradeCount": 392
+  }
+ ],
+ "comparison": {
+  "typicalNotionalUsd": 1620.636565,
+  "ratio": 3.35744
+ },
+ "assessment": "unusual-activity",
+ "event": {
+  "id": "BTC/USD:1761312900",
+  "windowStart": "2025-10-24T13:05:00.000Z",
+  "windowEnd": "2025-10-24T13:35:00.000Z",
+  "notionalUsd": 5441.190775,
+  "tradeCount": 708,
+  "ratioToTypical": 3.35744,
+  "typicalNotionalUsd": 1620.636565,
+  "explanation": "Kraken spot BTC/USD traded $5K in the last 30 minutes, 3.4× its typical level for this time of day (above the 100th percentile of its last 14 days). The venue's reported buy/sell flag: 46% buy / 54% sell by value (indicative). Kraken only; not the whole market.",
+  "scope": "Kraken spot only"
+ },
+ "baseline": {
+  "eligible": true,
+  "baselineCoverage": 1,
+  "windowsInBaseline": 4027,
+  "windowsExpected": 4027,
+  "requiredCoverage": 0.8
+ },
+ "monitoring": {
+  "coveredThrough": "2025-10-24T13:35:00.000Z",
+  "collectionAgeSeconds": 35,
+  "gapCount": 0,
+  "halted": false
+ },
+ "verdict": "event",
+ "quality": {
+  "state": "verified",
+  "coverageVerified": true,
+  "completeBuckets": 6,
+  "totalBuckets": 6,
+  "reasons": [],
+  "detail": "Every 5-minute bucket in the window is complete under the monitor's verified coverage, and the detector evaluated it."
+ }
+}
