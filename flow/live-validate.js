@@ -1,7 +1,8 @@
 // Strict validation of a live-monitoring snapshot. The publisher is trusted with a secret, but its payload is still treated as untrusted:
 // a forged, corrupted or replayed snapshot must not become something a user reads as a market observation. Unknown fields are REJECTED
 // (so a raw-trade array or any other payload cannot ride along), and the verdict must agree with the fields that justify it.
-// This file has NO dependency on the monitor/detector code, so the server can ship it (with the router) on its own.
+// This file has NO dependency on the monitor/detector code (only the tiny asset registry), so the server can ship it (with the router) on its own.
+import { flowAsset } from './live-assets.js';
 export const LIVE_SCHEMA_VERSION = 1;
 export const LIVE_MODE = 'live-monitoring';
 
@@ -30,7 +31,8 @@ export function validateLiveSnapshot(input, { nowSec = Date.now() / 1000, limits
   if (!exact(s, ['schemaVersion', 'id', 'mode', 'asset', 'pair', 'source', 'window', 'observation', 'activity', 'series', 'comparison', 'assessment', 'event', 'baseline', 'monitoring', 'verdict', 'quality'])) return bad('unknown-field');
   if (s.schemaVersion !== LIVE_SCHEMA_VERSION) return bad('unsupported-version');
   if (s.mode !== LIVE_MODE) return bad('wrong-mode');                                  // demo / recorded snapshots can never be served as live
-  if (s.asset !== 'BTC' || s.pair !== 'BTC/USD' || s.id !== 'live-btc-usd') return bad('wrong-asset');
+  const A = flowAsset(s.asset);                                                       // a supported asset, and its pair/id must belong to THAT asset
+  if (!A || s.pair !== A.pair || s.id !== A.liveId) return bad('wrong-asset');
   if (!exact(s.source, ['venue', 'market', 'provider', 'scope']) || s.source.venue !== 'Kraken' || s.source.market !== 'spot' || !str(s.source.provider, 80) || !str(s.source.scope, 120)) return bad('bad-source');
 
   const o = s.observation;

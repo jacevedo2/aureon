@@ -1,11 +1,14 @@
 // Private delivery of the live BTC snapshot: Mac (publisher script) -> this router -> authenticated iPhone.
 //   POST /api/flow/live/publish   needs `Authorization: Bearer <FLOW_PUBLISH_SECRET>`. Disabled (503) unless that env var is set (>= 32 chars).
-//   GET  /api/flow/live           needs the app's normal user token (requireAuth, injected). Read-only.
+//   GET  /api/flow/live           needs the app's normal user token (requireAuth, injected). Read-only. `?asset=XRP` selects another asset; with no
+//                                 parameter it serves BTC exactly as before. An unsupported asset is a 400, never a guess.
+// Each asset is held, rate-limited and replay-checked INDEPENDENTLY, so one asset's publisher can never overwrite or age another's.
 // The snapshot is held IN MEMORY only (Render free tier restarts and sleeps). That is represented, not hidden: after a restart the read
 // endpoint says `no-snapshot` with reason `backend-restarted`, never an old or empty "normal". Nothing here writes to disk or calls a provider.
 import { createHash, timingSafeEqual } from 'node:crypto';
 import express, { Router } from 'express';
 import { validateLiveSnapshot, LIVE_LIMITS } from './live-validate.js';
+import { DEFAULT_FLOW_ASSET, flowAsset } from './live-assets.js';
 
 const sha = (s) => createHash('sha256').update(String(s)).digest();
 export const LIVE_RESPONSE_VERSION = 1;
@@ -15,8 +18,8 @@ export function createFlowLiveRouter({ requireAuth, publishSecret = process.env.
   const secretOk = typeof publishSecret === 'string' && publishSecret.length >= 32;
   const secretHash = secretOk ? sha(publishSecret) : null;
   const bootedAt = nowMs();
-  let held = null;                       // { snapshot, receivedAt, capturedAt }
-  let lastPublishAt = 0;
+  const held = new Map();                // asset -> { snapshot, receivedAt, capturedAt }
+  const lastPublishAt = new Map();       // asset -> ms
   const router = Router();
 
   router.post('/live/publish', (req, res, next) => {                                // auth first: an unauthenticated caller learns nothing and parses nothing
@@ -27,23 +30,28 @@ export function createFlowLiveRouter({ requireAuth, publishSecret = process.env.
     return next();
   }, express.json({ limit: limits.maxBodyBytes, strict: true }), (req, res) => {
     const now = nowMs();
-    if (now - lastPublishAt < minPublishGapMs) return res.status(429).json({ error: 'too-frequent' });
+    const slot = flowAsset(req.body?.asset) ? req.body.asset : DEFAULT_FLOW_ASSET;   // picks the rate-limit slot only; the validator decides acceptance
+    if (now - (lastPublishAt.get(slot) ?? 0) < minPublishGapMs) return res.status(429).json({ error: 'too-frequent' });
     const v = validateLiveSnapshot(req.body, { nowSec: now / 1000, limits });
     if (!v.ok) return res.status(422).json({ error: 'invalid-snapshot', reason: v.reason });
+    const key = v.snapshot.asset;
     const capturedAt = Date.parse(v.snapshot.observation.capturedAt);
-    if (held && capturedAt <= held.capturedAt) return res.status(409).json({ error: 'not-newer-than-held' });   // blocks replay of an older capture
-    held = { snapshot: v.snapshot, receivedAt: now, capturedAt }; lastPublishAt = now;
+    if (held.has(key) && capturedAt <= held.get(key).capturedAt) return res.status(409).json({ error: 'not-newer-than-held' });   // blocks replay of an older capture
+    held.set(key, { snapshot: v.snapshot, receivedAt: now, capturedAt }); lastPublishAt.set(key, now);
     return res.status(200).json({ accepted: true, capturedAt: v.snapshot.observation.capturedAt });
   });
 
   router.get('/live', requireAuth, (req, res) => {
     res.set('Cache-Control', 'no-store');
+    const requested = req.query.asset === undefined ? DEFAULT_FLOW_ASSET : req.query.asset;
+    if (!flowAsset(requested)) return res.status(400).json({ error: 'unsupported-asset' });
     const now = nowMs();
     const env = { schemaVersion: LIVE_RESPONSE_VERSION, serverTime: new Date(now).toISOString(), serverStartedAt: new Date(bootedAt).toISOString() };
-    if (!held) return res.json({ ...env, state: 'no-snapshot', reason: 'backend-restarted' });      // nothing received since this process started
-    const ageSeconds = Math.max(0, Math.round((now - held.capturedAt) / 1000));
+    const h = held.get(requested);
+    if (!h) return res.json({ ...env, state: 'no-snapshot', reason: 'backend-restarted' });      // nothing received since this process started
+    const ageSeconds = Math.max(0, Math.round((now - h.capturedAt) / 1000));
     // Re-validate on every read: the age rule is time-dependent, and a held object can never be served unvalidated.
-    const v = validateLiveSnapshot(held.snapshot, { nowSec: now / 1000, limits });
+    const v = validateLiveSnapshot(h.snapshot, { nowSec: now / 1000, limits });
     if (!v.ok) return res.json({ ...env, state: 'stale', reason: v.reason === 'stale-snapshot' ? 'publisher-silent' : 'invalid-held-snapshot', snapshotAgeSeconds: ageSeconds });
     return res.json({ ...env, state: 'ok', snapshotAgeSeconds: ageSeconds, snapshot: v.snapshot });
   });
