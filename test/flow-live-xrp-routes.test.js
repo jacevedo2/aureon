@@ -16,9 +16,9 @@ const BTC = fx('live-snapshot-normal'); const XRP = toXrp(BTC); const XRP_EVENT 
 const cap = (s) => Date.parse(s.observation.capturedAt) / 1000;
 const SECRET = 'x'.repeat(40);
 
-test('registry: BTC and XRP only; exact keys; the fixtures relabel cleanly', () => {
-  assert.deepEqual(Object.keys(FLOW_ASSETS), ['BTC', 'XRP']);
-  for (const bad of ['xrp', 'ETH', '', 'constructor', '__proto__', null, undefined, ['XRP']]) assert.equal(flowAsset(bad), null);
+test('registry: BTC, XRP and ETH only; exact keys; the fixtures relabel cleanly', () => {
+  assert.deepEqual(Object.keys(FLOW_ASSETS), ['BTC', 'XRP', 'ETH']);
+  for (const bad of ['xrp', 'eth', 'DOGE', '', 'constructor', '__proto__', null, undefined, ['XRP']]) assert.equal(flowAsset(bad), null);
   assert.equal(XRP.asset, 'XRP'); assert.equal(XRP.pair, 'XRP/USD'); assert.equal(XRP.id, 'live-xrp-usd'); assert.doesNotMatch(JSON.stringify(XRP), /BTC/);
   assert.equal(BTC.asset, 'BTC'); assert.equal(BTC.id, 'live-btc-usd');
 });
@@ -31,7 +31,7 @@ test('validator: XRP and BTC validate; identity cannot be mixed; other assets an
   assert.equal(reason((s) => { s.id = 'live-btc-usd'; }), 'wrong-asset');
   assert.equal(reason((s) => { s.asset = 'BTC'; }), 'wrong-asset');
   assert.equal(reason((s) => { s.asset = 'xrp'; }), 'wrong-asset');
-  assert.equal(reason((s) => { s.asset = 'ETH'; s.pair = 'ETH/USD'; s.id = 'live-eth-usd'; }), 'wrong-asset');
+  assert.equal(reason((s) => { s.asset = 'DOGE'; s.pair = 'DOGE/USD'; s.id = 'live-doge-usd'; }), 'wrong-asset');
   assert.equal(reason((s) => { s.asset = '__proto__'; }), 'wrong-asset');
   assert.equal(reason((s) => { s.baseline.eligible = false; }), 'inconsistent-verdict');          // "normal" still needs an eligible baseline
   assert.equal(reason((s) => { s.trades = [{ price: 1 }]; }), 'unknown-field');
@@ -77,7 +77,7 @@ test('BTC and XRP are accepted, held and served independently; unknown assets ar
     assert.equal((await s.get('?asset=XRP', {})).status, 401); assert.equal((await s.get('?asset=XRP', { authorization: `Bearer ${SECRET}` })).status, 401);
     assert.equal((await s.pub(XRP, {})).status, 401); assert.equal((await s.pub(XRP, { authorization: 'Bearer wrong' })).status, 401);
     const mixed = clone(XRP); mixed.pair = 'BTC/USD'; const r = await s.pub(mixed); assert.equal(r.status, 422); assert.equal((await r.json()).reason, 'wrong-asset');
-    const eth = clone(XRP); eth.asset = 'ETH'; assert.equal((await s.pub(eth)).status, 422);
+    const crossed = clone(XRP); crossed.asset = 'ETH'; assert.equal((await s.pub(crossed)).status, 422);       // ETH identity on an XRP pair/id
     assert.equal((await (await s.get('?asset=XRP')).json()).snapshot.pair, 'XRP/USD');                   // the refused payloads changed nothing
   } finally { await s.close(); }
 });
@@ -101,4 +101,20 @@ test('production source stays self-contained: the asset registry has no imports 
   const read = (f) => readFileSync(fileURLToPath(new URL(f, import.meta.url)), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
   assert.doesNotMatch(read('../flow/live-assets.js'), /import |require\(|fetch\(|process\.env/);
   assert.doesNotMatch(['../flow/live-routes.js', '../flow/live-validate.js', '../flow/live-assets.js'].map(read).join('\n'), /from '\.\/(monitor|store|detector|buckets|kraken|collector|live-snapshot)|better-sqlite3|node:fs|node:child_process|fetch\(|https?:\/\//);
+});
+
+const ETH = JSON.parse(JSON.stringify(BTC).replaceAll('live-btc-usd', 'live-eth-usd').replaceAll('BTC/USD', 'ETH/USD').replace('"asset":"BTC"', '"asset":"ETH"'));
+test('ETH is accepted, held and served independently of BTC and XRP; it cannot be relabelled or cross-served', async () => {
+  const s = await serve();
+  try {
+    assert.equal((await (await s.get('?asset=ETH')).json()).state, 'no-snapshot');
+    assert.equal((await s.pub(BTC)).status, 200); assert.equal((await s.pub(XRP)).status, 200);
+    assert.equal((await (await s.get('?asset=ETH')).json()).state, 'no-snapshot');                      // BTC/XRP publishes never answer an ETH read
+    assert.equal((await s.pub(ETH)).status, 200);
+    const e = await (await s.get('?asset=ETH')).json(); assert.equal(e.state, 'ok'); assert.equal(e.snapshot.asset, 'ETH'); assert.equal(e.snapshot.id, 'live-eth-usd'); assert.equal(e.snapshot.pair, 'ETH/USD');
+    assert.equal((await (await s.get()).json()).snapshot.asset, 'BTC'); assert.equal((await (await s.get('?asset=XRP')).json()).snapshot.asset, 'XRP');   // ETH overwrote neither
+    for (const mut of [(x) => { x.pair = 'BTC/USD'; }, (x) => { x.id = 'live-xrp-usd'; }, (x) => { x.asset = 'XRP'; }]) { const c = clone(ETH); mut(c); assert.equal((await s.pub(c)).status, 422); }
+    assert.equal((await s.get('?asset=ETH', {})).status, 401);                                          // auth applies to ETH too
+    assert.equal((await s.get('?asset=eth')).status, 400);
+  } finally { await s.close(); }
 });
