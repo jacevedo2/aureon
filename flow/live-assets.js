@@ -3,6 +3,7 @@
 export const FLOW_ASSETS = Object.freeze({
   BTC: Object.freeze({ asset: 'BTC', pair: 'BTC/USD', krakenPair: 'XBTUSD', streamId: 'kraken:spot:btc/usd:kraken public rest', liveId: 'live-btc-usd' }),
   XRP: Object.freeze({ asset: 'XRP', pair: 'XRP/USD', krakenPair: 'XRPUSD', streamId: 'kraken:spot:xrp/usd:kraken public rest', liveId: 'live-xrp-usd' }),
+  ETH: Object.freeze({ asset: 'ETH', pair: 'ETH/USD', krakenPair: 'ETHUSD', streamId: 'kraken:spot:eth/usd:kraken public rest', liveId: 'live-eth-usd' }),
 });
 export const DEFAULT_FLOW_ASSET = 'BTC';
 /** @returns the registry entry for a supported asset code, else null. Only own, exact, upper-case keys match (no prototype keys, no case folding). */
